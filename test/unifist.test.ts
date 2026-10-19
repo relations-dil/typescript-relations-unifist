@@ -280,6 +280,18 @@ describe('UnifistModel', () => {
     return calls
   }
 
+  function asked(action: 'create' | 'update' | 'delete'): any[][] {
+    const seen: any[][] = []
+    const real = (local as any)[action].bind(local)
+
+    ;(local as any)[action] = async (model: any, ...args: any[]) => {
+      seen.push(args)
+      return real(model, ...args)
+    }
+
+    return seen
+  }
+
   it('test_define', () => {
     // The unifist source is unifist by default, and set on the app's base and inherited, a different source than the app's
 
@@ -642,6 +654,18 @@ describe('UnifistModel', () => {
     await new Item({ name: 'g' }).create()
 
     assert.equal(calls.length, 1)
+
+    // What else is asked of the write goes on to the source, as its first extra argument, and nothing is passed if
+    // there's nothing but the writer
+
+    const seen = asked('create')
+
+    await new Item({ name: 'h' }).create({ writer: 'away', force: true })
+    await new Item({ name: 'i' }).create({ writer: 'away' })
+    await new Item({ name: 'j' }).create()
+    await Item.bulk().add({ name: 'k' }).add({ name: 'l' }).create({ writer: 'away', force: true })
+
+    assert.deepEqual(seen, [[{ force: true }], [], [], [{ force: true }], [{ force: true }]])
   })
 
   it('test_update', async () => {
@@ -709,6 +733,21 @@ describe('UnifistModel', () => {
     await item.update()
 
     assert.equal(calls.length, 1)
+
+    // What else is asked of the write goes on to the source, as its first extra argument, for each record of a query too,
+    // and nothing is passed if there's nothing but the writer
+
+    const seen = asked('update')
+
+    item.name = 'w'
+    await item.update({ writer: 'away', force: true })
+    item.name = 'v'
+    await item.update({ writer: 'away' })
+    item.name = 'u'
+    await item.update()
+    await Item.many({ name: 'y' }).set({ name: 't' }).update({ force: true })
+
+    assert.deepEqual(seen, [[{ force: true }], [], [], [{ force: true }], [{ force: true }]])
   })
 
   it('test_delete', async () => {
@@ -766,5 +805,20 @@ describe('UnifistModel', () => {
 
     assert.equal(calls.length, 1)
     assert.equal(local.data.item.size, 0)
+
+    // What else is asked of the write goes on to the source, as its first extra argument, for each record of a query too,
+    // and nothing is passed if there's nothing but the writer
+
+    await Item.bulk().add({ name: 'd' }).add({ name: 'e' }).add({ name: 'f' }).add({ name: 'g' }).create()
+
+    const seen = asked('delete')
+    const ids = [...local.data.item.keys()].sort()
+
+    await Item.one(ids[0]).delete({ writer: 'away', force: true })
+    await Item.one(ids[1]).delete({ writer: 'away' })
+    await Item.one(ids[2]).delete()
+    await Item.many({ name: 'g' }).delete({ force: true })
+
+    assert.deepEqual(seen, [[{ force: true }], [], [], [{ force: true }]])
   })
 })
