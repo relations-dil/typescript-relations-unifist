@@ -12,7 +12,7 @@ Found porting relations-unum.
 ### Added
 - Options besides `writer` reach the source. In Python every keyword that isn't `writer` goes on to the source (`update(force=True)`), here `create`, `update` and `delete` took `writer` and dropped the rest. They now forward the rest of the options object to the source as its first extra argument, when there is any, so `item.update({ writer: 'away', force: true })` works and a source reads what it asks for. Bulk and by-query writes pass them to every record's write. With nothing besides `writer`, nothing extra is passed, so no source sees a change.
 
-- A `prepare` script builds the package, so it can be installed from a git ref (`github:relations-dil/typescript-relations-unifist#<hash>`) to test a dependent before a release. The `Dockerfile` installs with `--ignore-scripts`, since the source isn't copied in yet when it does.
+- A `prepare` script builds the package when there is source to build, so it can be installed from a git ref (`git+https://github.com/relations-dil/typescript-relations-unifist.git#<hash>`) to test a dependent before a release. The `Dockerfile` installs before the source is copied in, so there it has nothing to build and does nothing.
 
 ### Fixed
 - The clean-install check in `scripts/verify.sh` tries again while the registry catches up. The first release hit a 404 on npm's package page right after the publish, while the version page already answered, and stopped before the tag. `make test-release` covers it.

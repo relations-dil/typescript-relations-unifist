@@ -6,7 +6,7 @@ WORKDIR /opt/service
 
 COPY package.json package-lock.json ./
 
-RUN npm ci --ignore-scripts
+RUN npm ci
 
 COPY tsconfig.json tsconfig.test.json eslint.config.js ./
 COPY src src
