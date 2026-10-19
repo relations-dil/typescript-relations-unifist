@@ -1,6 +1,6 @@
 {
   "name": "@relations-dil/unifist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Relations models for local generation of ids, slugs and a journal, ready for global addressing.",
   "license": "MIT",
   "repository": {
