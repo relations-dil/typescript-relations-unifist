@@ -117,6 +117,9 @@ await new Item({ id: '9:item.local:away', name: 'c' }).create({ writer: 'away' }
 await item.update({ writer: 'away' })
 ```
 
+Anything else in the options goes on to the source, as its first extra argument, so a source can take what it asks
+for (`await item.update({ force: true })`). With nothing but `writer`, nothing extra is passed.
+
 Writes are serialized: a bulk create, and an update or delete by a query, are done one record at a time, each with its
 own id, version and journal row, and resolve to how many were written. They are not atomic yet.
 
@@ -127,7 +130,7 @@ own id, version and journal row, and resolve to how many were written. They are 
 | **Calls** | Synchronous | `async` | The sources are |
 | **Config** | `UNUM`, `UNIFIST`, `SLUG`, `JOURNAL` | `static unum`, `unifist`, `slug`, `journal` | Lowercase statics, like `source` |
 | **`generate_id`** | `generate_id()` | `await generateId()` | camelCase, and async |
-| **`writer=`** | A keyword | `create({ writer })`, `update({ writer })`, `delete({ writer })` | No keyword arguments |
+| **Keywords** | `writer=`, and any other goes to the source | `create({ writer, ...rest })`, `update(...)`, `delete(...)`, the rest goes to the source as its first extra argument | No keyword arguments |
 | **`microseconds()`** | The clock's nanoseconds, truncated | The clock's milliseconds, each value later than the last | JS has no finer wall clock, and ordering by `when` needs a value per row |
 | **`id` and `version` checks** | Checked in `__init__` | Checked in the constructor | Same |
 

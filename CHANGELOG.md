@@ -5,6 +5,16 @@ All notable changes to this project are recorded here, newest first. Format foll
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-18
+
+Found porting relations-unum.
+
+### Added
+- Options besides `writer` reach the source. In Python every keyword that isn't `writer` goes on to the source (`update(force=True)`), here `create`, `update` and `delete` took `writer` and dropped the rest. They now forward the rest of the options object to the source as its first extra argument, when there is any, so `item.update({ writer: 'away', force: true })` works and a source reads what it asks for. Bulk and by-query writes pass them to every record's write. With nothing besides `writer`, nothing extra is passed, so no source sees a change.
+
+### Fixed
+- The clean-install check in `scripts/verify.sh` tries again while the registry catches up. The first release hit a 404 on npm's package page right after the publish, while the version page already answered, and stopped before the tag. `make test-release` covers it.
+
 ## [0.1.0] - 2026-10-18
 
 The TypeScript port of python-relations-unifist 0.1.0, on `@relations-dil/relations` 0.2.3 (hooks, string ids and the error classes it needs).
