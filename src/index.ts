@@ -19,9 +19,13 @@
 import { Model, ModelError, UniqueError, dict, fields, int, str } from '@relations-dil/relations'
 import type { ModelClass } from '@relations-dil/relations'
 
-/** What a write can say about itself: the unum writing, if it's on behalf of another */
+/**
+ * What a write can say about itself: the unum writing, if it's on behalf of another. Anything else is for the
+ * source, and goes on to it as its first extra argument
+ */
 export interface WriteOptions {
   writer?: string | null
+  [option: string]: any
 }
 
 /**
@@ -233,16 +237,16 @@ export class UnifistModel extends Model {
    * The writer is the unum writing, this unum unless it's on behalf of another.
    */
   async create(options: WriteOptions = {}, ...args: any[]): Promise<this> {
-    const writer = options.writer ?? null
+    const { writer = null, ...rest } = options
 
     this._writer = writer
 
     if (!this._bulk) {
-      return super.create(...args)
+      return super.create(...forward(rest), ...args)
     }
 
     for (const model of (this._models as any[])) {
-      await (model as any).create({ writer }, ...args)
+      await (model as any).create({ ...rest, writer }, ...args)
     }
 
     this._models = []
@@ -256,7 +260,7 @@ export class UnifistModel extends Model {
    * this unum unless it's on behalf of another.
    */
   async update(options: WriteOptions = {}, ...args: any[]): Promise<number> {
-    const writer = options.writer ?? null
+    const { writer = null, ...rest } = options
 
     this._writer = writer
 
@@ -282,13 +286,13 @@ export class UnifistModel extends Model {
       let updated = 0
 
       for (const model of (this._models as any[])) {
-        updated += await (model as any).update({ writer }, ...args)
+        updated += await (model as any).update({ ...rest, writer }, ...args)
       }
 
       return updated
     }
 
-    return super.update(...args)
+    return super.update(...forward(rest), ...args)
   }
 
   /**
@@ -296,7 +300,7 @@ export class UnifistModel extends Model {
    * to how many were deleted. The writer is the unum writing, this unum unless it's on behalf of another.
    */
   async delete(options: WriteOptions = {}, ...args: any[]): Promise<number> {
-    const writer = options.writer ?? null
+    const { writer = null, ...rest } = options
 
     this._writer = writer
 
@@ -310,13 +314,13 @@ export class UnifistModel extends Model {
       let deleted = 0
 
       for (const model of (this._models as any[])) {
-        deleted += await (model as any).delete({ writer }, ...args)
+        deleted += await (model as any).delete({ ...rest, writer }, ...args)
       }
 
       return deleted
     }
 
-    return super.delete(...args)
+    return super.delete(...forward(rest), ...args)
   }
 
   /** Gives new records their ids, bumps the version of records that changed, and keeps what post needs to journal. */
@@ -357,6 +361,11 @@ export class UnifistModel extends Model {
 
     return result
   }
+}
+
+/** What else was asked of a write, as the extra argument the source gets, or nothing if there isn't any */
+function forward(rest: Record<string, any>): any[] {
+  return Object.keys(rest).length ? [rest] : []
 }
 
 /**

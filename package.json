@@ -1,6 +1,6 @@
 {
   "name": "@relations-dil/unifist",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Relations models for local generation of ids, slugs and a journal, ready for global addressing.",
   "license": "MIT",
   "repository": {
@@ -45,6 +45,7 @@
     "test": "node --import tsx --test test/*.test.ts",
     "coverage": "tsc -p tsconfig.test.json --noEmit false --outDir dist-test && node --test --experimental-test-coverage --test-coverage-exclude='dist-test/test/**' --test-reporter=spec dist-test/test/*.test.js",
     "lint": "npm run typecheck && eslint src test",
+    "prepare": "[ ! -d src ] || npm run build",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
