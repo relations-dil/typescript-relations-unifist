@@ -173,33 +173,37 @@ class Base extends UnifistModel {
   static source = 'local'
 }
 
-class Thing extends fields({ id: str, version: { kind: int, default: 1 } }, Base) {}
+class Thing extends fields({ id: str, version: { kind: int, default: 1 }, unum: str }, Base) {}
 
-class Other extends fields({ id: str, version: { kind: int, default: 1 } }, Base) {}
+class Other extends fields({ id: str, version: { kind: int, default: 1 }, unum: str }, Base) {}
 
-class Third extends fields({ id: str, version: { kind: int, default: 1 } }, Base) {}
+class Third extends fields({ id: str, version: { kind: int, default: 1 }, unum: str }, Base) {}
 
-class Fresh extends fields({ id: str, version: { kind: int, default: 1 } }, Base) {}
+class Fresh extends fields({ id: str, version: { kind: int, default: 1 }, unum: str }, Base) {}
 
-class Page extends fields({ id: str, version: { kind: int, default: 1 }, title: str }, Base) {
+class Page extends fields({ id: str, version: { kind: int, default: 1 }, unum: str, title: str }, Base) {
   static slug = 'title'
 }
 
-class Person extends fields({ id: str, version: { kind: int, default: 1 }, first: str, last: str }, Base) {
+class Person extends fields({ id: str, version: { kind: int, default: 1 }, unum: str, first: str, last: str }, Base) {
   static slug = ['first', 'last']
 }
 
-class Item extends fields({ id: str, version: { kind: int, default: 1 }, name: str }, Base) {}
+class Item extends fields({ id: str, version: { kind: int, default: 1 }, unum: str, name: str }, Base) {}
 
-class IntId extends fields({ id: int, version: { kind: int, default: 1 } }, UnifistModel) {}
+class IntId extends fields({ id: int, version: { kind: int, default: 1 }, unum: str }, UnifistModel) {}
 
 class NoVersion extends fields({ id: str, title: str }, UnifistModel) {}
 
-class BadSlug extends fields({ id: str, version: { kind: int, default: 1 }, title: str }, UnifistModel) {
+class NoUnum extends fields({ id: str, version: { kind: int, default: 1 }, title: str }, UnifistModel) {}
+
+class IntUnum extends fields({ id: str, version: { kind: int, default: 1 }, unum: int }, UnifistModel) {}
+
+class BadSlug extends fields({ id: str, version: { kind: int, default: 1 }, unum: str, title: str }, UnifistModel) {
   static slug = 'nope'
 }
 
-class BadSlugs extends fields({ id: str, version: { kind: int, default: 1 }, title: str }, UnifistModel) {
+class BadSlugs extends fields({ id: str, version: { kind: int, default: 1 }, unum: str, title: str }, UnifistModel) {
   static slug = ['title', 'nope']
 }
 
@@ -312,16 +316,18 @@ describe('UnifistModel', () => {
   })
 
   it('test___init__', () => {
-    // Fine with an id string, a version int, and a slug that is a field or a list of them
+    // Fine with an id string, a version int, a unum string, and a slug that is a field or a list of them
 
     assert.equal((new Thing() as any).version, 1)
     assert.equal((new Page({ title: 'Hello' }) as any).title, 'Hello')
     assert.equal((new Person({ first: 'Gaffer', last: 'Fitch' }) as any).last, 'Fitch')
 
-    // The id has to be a str and there has to be a version
+    // The id has to be a str and there has to be a version and a unum, a str
 
     assert.throws(() => new IntId(), { name: 'ModelError', message: /int_id: id has to be a str field/ })
     assert.throws(() => new NoVersion(), { name: 'ModelError', message: /no_version: version has to be an int field/ })
+    assert.throws(() => new NoUnum(), { name: 'ModelError', message: /no_unum: unum has to be a str field/ })
+    assert.throws(() => new IntUnum(), { name: 'ModelError', message: /int_unum: unum has to be a str field/ })
 
     // A slug has to name fields the model has
 
@@ -524,6 +530,45 @@ describe('UnifistModel', () => {
     assert.equal(((await Item.one('1:item.local:home').retrieve()) as any).name, 'c')
   })
 
+  it('test_unum', async () => {
+    // A new record has the unum of the id it was given, this unum's for one made here
+
+    const item: any = await new Item({ name: 'a' }).create()
+
+    assert.equal(item.unum, 'home')
+    assert.equal(local.data.item.get('1:item.local:home')!.unum, 'home')
+
+    // A record made by another unum keeps what it came with, or if that's nothing the unum in its id
+
+    await new Item({ id: '9:item.local:away', unum: 'away', name: 'b' }).create({ writer: 'away' })
+    await new Item({ id: '8:item.local:away', name: 'c' }).create({ writer: 'away' })
+
+    assert.equal(local.data.item.get('9:item.local:away')!.unum, 'away')
+    assert.equal(local.data.item.get('8:item.local:away')!.unum, 'away')
+
+    // A bulk create sets it on every record
+
+    await Item.bulk().add({ name: 'e' }).add({ name: 'f' }).create()
+
+    assert.equal(local.data.item.get('2:item.local:home')!.unum, 'home')
+    assert.equal(local.data.item.get('3:item.local:home')!.unum, 'home')
+
+    // It's a field like any other, so a query can name the unums it's for
+
+    const ids = async (query: any) => [...(await query.retrieve()).models].map((model: any) => model.id).sort()
+
+    assert.deepEqual(await ids(Item.many({ unum: 'away' })), ['8:item.local:away', '9:item.local:away'])
+    assert.deepEqual(await ids(Item.many({ unum__in: ['home', 'away'] })), [
+      '1:item.local:home',
+      '2:item.local:home',
+      '3:item.local:home',
+      '8:item.local:away',
+      '9:item.local:away'
+    ])
+    assert.equal(await Item.many({ unum: 'home' }).count(), 3)
+    assert.equal(await Item.many({ unum: 'nowhere' }).count(), 0)
+  })
+
   it('test_post', async () => {
     // A create is journaled, by the id, with when in microseconds, and the app (source) and block (model) it was in
 
@@ -539,7 +584,7 @@ describe('UnifistModel', () => {
       app: 'local',
       block: 'item',
       id: '1:item.local:home',
-      after: { id: '1:item.local:home', version: 1, name: 'a' }
+      after: { id: '1:item.local:home', version: 1, unum: 'home', name: 'a' }
     })
     assert.ok(before <= journal()[0].when && journal()[0].when <= after)
 
@@ -556,8 +601,8 @@ describe('UnifistModel', () => {
       app: 'local',
       block: 'item',
       id: '1:item.local:home',
-      before: { id: '1:item.local:home', version: 1, name: 'a' },
-      after: { id: '1:item.local:home', version: 2, name: 'b' }
+      before: { id: '1:item.local:home', version: 1, unum: 'home', name: 'a' },
+      after: { id: '1:item.local:home', version: 2, unum: 'home', name: 'b' }
     })
     assert.ok(journal()[0].when <= journal()[1].when)
 
@@ -579,7 +624,7 @@ describe('UnifistModel', () => {
       app: 'local',
       block: 'item',
       id: '1:item.local:home',
-      before: { id: '1:item.local:home', version: 2, name: 'b' }
+      before: { id: '1:item.local:home', version: 2, unum: 'home', name: 'b' }
     })
 
     // A bulk create is journaled one record at a time
@@ -696,8 +741,8 @@ describe('UnifistModel', () => {
       app: 'local',
       block: 'item',
       id: '2:item.local:home',
-      before: { id: '2:item.local:home', version: 1, name: 'a' },
-      after: { id: '2:item.local:home', version: 2, name: 'z' }
+      before: { id: '2:item.local:home', version: 1, unum: 'home', name: 'a' },
+      after: { id: '2:item.local:home', version: 2, unum: 'home', name: 'z' }
     })
 
     // Nothing matching is nothing done
@@ -773,7 +818,7 @@ describe('UnifistModel', () => {
       app: 'local',
       block: 'item',
       id: '1:item.local:home',
-      before: { id: '1:item.local:home', version: 1, name: 'a' }
+      before: { id: '1:item.local:home', version: 1, unum: 'home', name: 'a' }
     })
 
     // Nothing matching is nothing done
