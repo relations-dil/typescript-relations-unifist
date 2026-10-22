@@ -5,8 +5,11 @@ All notable changes to this project are recorded here, newest first. Format foll
 
 ## [0.2.0] - 2026-10-22
 
+### Added
+- `unum`, a regular field on `UnifistModel`, so a query can name the unums it's for with a plain `unum` criterion (`unum: 'away'` or `unum__in: [...]`). It's set on create, to the unum in the record's id: this unum's for an id made here, the owner's for an id another unum made, unless the record came with one. It's in what the journal keeps, so sync copies it (relations-dil/typescript-relations-unifist#6, as relations-dil/python-relations-unifist#8 in 0.3.0 there).
 
 ### Changed
+- **Models need a `unum` str field**, as they need `id` and `version`, checked when a model is made. Add `unum: str` to each of them, and give rows made before it the unum in their id (the last part, after the second colon), in MySQL `UPDATE thing SET unum = SUBSTRING_INDEX(id, ':', -1)`.
 - `make release-check` and `make release` don't run `build`, `test`, `lint` and `setup` again, only the `pack`: the Jenkins stages have just run them before the release stage, so it was the same work twice. Run them yourself before checking by hand, as `make release-check` is only the checks now (relations-dil/python-relations#90).
 
 ## [0.1.1] - 2026-10-18

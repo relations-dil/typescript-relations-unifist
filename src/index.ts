@@ -104,7 +104,7 @@ export class UnifistModel extends Model {
   /** The unum writing, if on behalf of another, kept for post */
   declare _writer: string | null
 
-  /** Checks the model has what ids and versions need, then does what any model does */
+  /** Checks the model has what ids, versions and unums need, then does what any model does */
   constructor(...args: any[]) {
     const cls = new.target as unknown as ModelClass & typeof UnifistModel
     const identity = cls.thy()
@@ -115,6 +115,10 @@ export class UnifistModel extends Model {
 
     if (!identity._fields.has('version') || identity._fields.field('version')!.kind !== int) {
       throw new ModelError(identity, 'version has to be an int field')
+    }
+
+    if (!identity._fields.has('unum') || identity._fields.field('unum')!.kind !== str) {
+      throw new ModelError(identity, 'unum has to be a str field')
     }
 
     if (cls.slug !== null) {
@@ -323,7 +327,7 @@ export class UnifistModel extends Model {
     return super.delete(...forward(rest), ...args)
   }
 
-  /** Gives new records their ids, bumps the version of records that changed, and keeps what post needs to journal. */
+  /** Gives new records their ids and the unum in them, bumps the version of records that changed, and keeps what post needs to journal. */
   async pre(action: string, ...args: any[]): Promise<void> {
     const journaling: Array<[any, Record<string, any> | null]> = []
 
@@ -335,6 +339,10 @@ export class UnifistModel extends Model {
       if (action === 'create') {
         if (model.id === null || model.id === undefined) {
           model.id = await model.generateId()
+        }
+
+        if (model.unum === null || model.unum === undefined) {
+          model.unum = String(model.id).split(':').slice(2).join(':')
         }
 
         journaling.push([model, null])
